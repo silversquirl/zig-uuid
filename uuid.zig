@@ -1,5 +1,3 @@
-const fmt = std.fmt;
-const hash = std.crypto.hash;
 const std = @import("std");
 const testing = std.testing;
 
@@ -9,7 +7,7 @@ pub const Uuid = struct {
     pub const zero = Uuid{ .bytes = std.mem.zeroes([16]u8) };
 
     pub fn v3(ns: Uuid, name: []const u8) Uuid {
-        return hashInit(hash.Md5, 3, ns, name);
+        return hashInit(std.crypto.hash.Md5, 3, ns, name);
     }
     pub fn v4() Uuid {
         var v: [16]u8 = undefined;
@@ -17,7 +15,7 @@ pub const Uuid = struct {
         return init(4, v);
     }
     pub fn v5(ns: Uuid, name: []const u8) Uuid {
-        return hashInit(hash.Sha1, 5, ns, name);
+        return hashInit(std.crypto.hash.Sha1, 5, ns, name);
     }
 
     const ParseError = error{ InvalidCharacter, InvalidLength };
@@ -39,7 +37,7 @@ pub const Uuid = struct {
             if (str[i.*] == '-') {
                 i.* += 1;
             } else {
-                const c = try fmt.charToDigit(str[i.*], 16);
+                const c = try std.fmt.charToDigit(str[i.*], 16);
                 i.* += 1;
                 return c;
             }
@@ -50,12 +48,12 @@ pub const Uuid = struct {
     pub fn toString(self: Uuid) [36]u8 {
         var buf: [36]u8 = undefined;
 
-        const slice = fmt.bufPrint(&buf, "{}-{}-{}-{}-{}", .{
-            fmt.fmtSliceHexLower(self.bytes[0..4]),
-            fmt.fmtSliceHexLower(self.bytes[4..6]),
-            fmt.fmtSliceHexLower(self.bytes[6..8]),
-            fmt.fmtSliceHexLower(self.bytes[8..10]),
-            fmt.fmtSliceHexLower(self.bytes[10..16]),
+        const slice = std.fmt.bufPrint(&buf, "{}-{}-{}-{}-{}", .{
+            std.fmt.fmtSliceHexLower(self.bytes[0..4]),
+            std.fmt.fmtSliceHexLower(self.bytes[4..6]),
+            std.fmt.fmtSliceHexLower(self.bytes[6..8]),
+            std.fmt.fmtSliceHexLower(self.bytes[8..10]),
+            std.fmt.fmtSliceHexLower(self.bytes[10..16]),
         }) catch unreachable;
         std.debug.assert(slice.len == buf.len);
 
@@ -93,6 +91,14 @@ pub const Uuid = struct {
         hasher.final(&hashed);
         return init(version, hashed[0..16].*);
     }
+
+    pub fn format(self: Uuid, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        if (fmt.len == 0 or comptime std.mem.eql(u8, fmt, "s")) {
+            return std.fmt.formatBuf(&self.toString(), options, writer);
+        } else {
+            return std.fmt.formatIntValue(self.toInt(), fmt, options, writer);
+        }
+    }
 };
 
 test "UUID v3 generation" {
@@ -121,7 +127,7 @@ test "UUID v5 generation" {
 
 const test_uuid = comptime blk: {
     var buf: [16]u8 = undefined;
-    _ = try fmt.hexToBytes(&buf, "00112233445566778899aabbccddeeff");
+    _ = try std.fmt.hexToBytes(&buf, "00112233445566778899aabbccddeeff");
     break :blk Uuid{
         .bytes = buf,
     };
@@ -152,6 +158,13 @@ test "fromInt" {
 test "toInt" {
     const i: u128 = 0x00112233445566778899aabbccddeeff;
     testing.expectEqual(i, test_uuid.toInt());
+}
+
+test "format" {
+    try testing.expectFmt("00112233-4455-6677-8899-aabbccddeeff", "{}", .{test_uuid});
+    try testing.expectFmt("00112233-4455-6677-8899-aabbccddeeff", "{s}", .{test_uuid});
+    try testing.expectFmt("00112233-4455-6677-8899-aabbccddeeff", "{any}", .{test_uuid});
+    try testing.expectFmt("00112233445566778899aabbccddeeff", "{x:0>32}", .{test_uuid});
 }
 
 fn testNotEqual(a: Uuid, b: Uuid) void {
