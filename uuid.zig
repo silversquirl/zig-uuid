@@ -6,7 +6,7 @@ pub const Uuid = struct {
 
     pub const zero = Uuid{ .bytes = std.mem.zeroes([16]u8) };
 
-    pub fn v3(ns: Uuid, name: []const u8) Uuid {
+    pub fn v3(ns: []const u8, name: []const u8) Uuid {
         return hashInit(std.crypto.hash.Md5, 3, ns, name);
     }
     pub fn v4() Uuid {
@@ -14,7 +14,7 @@ pub const Uuid = struct {
         std.crypto.random.bytes(&v);
         return init(4, v);
     }
-    pub fn v5(ns: Uuid, name: []const u8) Uuid {
+    pub fn v5(ns: []const u8, name: []const u8) Uuid {
         return hashInit(std.crypto.hash.Sha1, 5, ns, name);
     }
 
@@ -83,9 +83,9 @@ pub const Uuid = struct {
         return .{ .bytes = v };
     }
 
-    fn hashInit(comptime Hash: type, comptime version: u4, ns: Uuid, name: []const u8) Uuid {
+    fn hashInit(comptime Hash: type, comptime version: u4, ns: []const u8, name: []const u8) Uuid {
         var hasher = Hash.init(.{});
-        hasher.update(&ns.bytes);
+        hasher.update(ns);
         hasher.update(name);
         var hashed: [Hash.digest_length]u8 = undefined;
         hasher.final(&hashed);
@@ -102,11 +102,13 @@ pub const Uuid = struct {
 };
 
 test "UUID v3 generation" {
-    const a = Uuid.v3(Uuid.zero, "foo bar");
-    const b = Uuid.v3(Uuid.zero, "foo bar");
-    const c = Uuid.v3(Uuid.zero, "bar baz");
+    const a = Uuid.v3(&Uuid.zero.bytes, "foo bar");
+    const b = Uuid.v3(&Uuid.zero.bytes, "foo bar");
+    const c = Uuid.v3(&Uuid.zero.bytes, "bar baz");
+    const d = Uuid.v3("helloooo", "foo bar");
     testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
     testNotEqual(a, c);
+    testNotEqual(a, d);
 }
 
 test "UUID v4 generation" {
@@ -116,13 +118,15 @@ test "UUID v4 generation" {
 }
 
 test "UUID v5 generation" {
-    const a = Uuid.v5(Uuid.zero, "foo bar");
-    const b = Uuid.v5(Uuid.zero, "foo bar");
-    const c = Uuid.v5(Uuid.zero, "bar baz");
-    const d = Uuid.v3(Uuid.zero, "foo bar");
+    const a = Uuid.v5(&Uuid.zero.bytes, "foo bar");
+    const b = Uuid.v5(&Uuid.zero.bytes, "foo bar");
+    const c = Uuid.v5(&Uuid.zero.bytes, "bar baz");
+    const d = Uuid.v3(&Uuid.zero.bytes, "foo bar");
+    const e = Uuid.v5("hellooooo", "foo bar");
     testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
     testNotEqual(a, c);
     testNotEqual(a, d);
+    testNotEqual(a, e);
 }
 
 const test_uuid = comptime blk: {
