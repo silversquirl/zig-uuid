@@ -72,8 +72,8 @@ pub const Uuid = struct {
 
     fn init(comptime version: u4, bytes: [16]u8) Uuid {
         var v: [16]u8 = bytes;
-        v[8] |= 0x3f | 0x40; // Set variant
-        v[6] |= 0x0f | version; // Set version
+        v[8] = (v[8] & 0x3f) | 0x80; // Set variant
+        v[6] = (v[6] & 0x0f) | (@as(u8, version) << 4); // Set version
         return .{ .bytes = v };
     }
 
@@ -100,6 +100,13 @@ test "UUID v3 generation" {
     const b = Uuid.v3(&Uuid.zero.bytes, "foo bar");
     const c = Uuid.v3(&Uuid.zero.bytes, "bar baz");
     const d = Uuid.v3("helloooo", "foo bar");
+
+    try testing.expectEqualSlices(
+        u8,
+        &(Uuid.fromString("5d686fd9-3ac1-33e2-9493-c2d436bbaee3") catch unreachable).bytes,
+        &a.bytes,
+    );
+
     try testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
     try testNotEqual(a, c);
     try testNotEqual(a, d);
@@ -117,6 +124,13 @@ test "UUID v5 generation" {
     const c = Uuid.v5(&Uuid.zero.bytes, "bar baz");
     const d = Uuid.v3(&Uuid.zero.bytes, "foo bar");
     const e = Uuid.v5("hellooooo", "foo bar");
+
+    try testing.expectEqualSlices(
+        u8,
+        &(Uuid.fromString("963bee72-17fa-5f11-a921-ac4d98f53b5e") catch unreachable).bytes,
+        &a.bytes,
+    );
+
     try testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
     try testNotEqual(a, c);
     try testNotEqual(a, d);
