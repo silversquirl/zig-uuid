@@ -106,15 +106,15 @@ test "UUID v3 generation" {
     const b = Uuid.v3(&Uuid.zero.bytes, "foo bar");
     const c = Uuid.v3(&Uuid.zero.bytes, "bar baz");
     const d = Uuid.v3("helloooo", "foo bar");
-    testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
-    testNotEqual(a, c);
-    testNotEqual(a, d);
+    try testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
+    try testNotEqual(a, c);
+    try testNotEqual(a, d);
 }
 
 test "UUID v4 generation" {
     const a = Uuid.v4();
     const b = Uuid.v4();
-    testNotEqual(a, b);
+    try testNotEqual(a, b);
 }
 
 test "UUID v5 generation" {
@@ -123,10 +123,10 @@ test "UUID v5 generation" {
     const c = Uuid.v5(&Uuid.zero.bytes, "bar baz");
     const d = Uuid.v3(&Uuid.zero.bytes, "foo bar");
     const e = Uuid.v5("hellooooo", "foo bar");
-    testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
-    testNotEqual(a, c);
-    testNotEqual(a, d);
-    testNotEqual(a, e);
+    try testing.expectEqualSlices(u8, &a.bytes, &b.bytes);
+    try testNotEqual(a, c);
+    try testNotEqual(a, d);
+    try testNotEqual(a, e);
 }
 
 const test_uuid = comptime blk: {
@@ -139,16 +139,16 @@ const test_uuid = comptime blk: {
 
 test "fromString" {
     const id = try Uuid.fromString("00112233445566778899aabbccddeeff");
-    testing.expectEqualSlices(u8, &test_uuid.bytes, &id.bytes);
+    try testing.expectEqualSlices(u8, &test_uuid.bytes, &id.bytes);
     const id2 = try Uuid.fromString("00112233-4455-6677-8899-aabbccddeeff");
-    testing.expectEqualSlices(u8, &test_uuid.bytes, &id2.bytes);
-    testing.expectError(error.InvalidCharacter, Uuid.fromString("00112233+4455-6677-8899-aabbccddeeff"));
-    testing.expectError(error.InvalidLength, Uuid.fromString("00112233-4455-6677-8899-aabbccddeeff0"));
-    testing.expectError(error.InvalidLength, Uuid.fromString("00112233-4455-6677-8899-aabbccddeef"));
+    try testing.expectEqualSlices(u8, &test_uuid.bytes, &id2.bytes);
+    try testing.expectError(error.InvalidCharacter, Uuid.fromString("00112233+4455-6677-8899-aabbccddeeff"));
+    try testing.expectError(error.InvalidLength, Uuid.fromString("00112233-4455-6677-8899-aabbccddeeff0"));
+    try testing.expectError(error.InvalidLength, Uuid.fromString("00112233-4455-6677-8899-aabbccddeef"));
 }
 
 test "toString" {
-    testing.expectEqualStrings(
+    try testing.expectEqualStrings(
         "00112233-4455-6677-8899-aabbccddeeff",
         &test_uuid.toString(),
     );
@@ -156,12 +156,12 @@ test "toString" {
 
 test "fromInt" {
     const id = Uuid.fromInt(0x00112233445566778899aabbccddeeff);
-    testing.expectEqualSlices(u8, &test_uuid.bytes, &id.bytes);
+    try testing.expectEqualSlices(u8, &test_uuid.bytes, &id.bytes);
 }
 
 test "toInt" {
     const i: u128 = 0x00112233445566778899aabbccddeeff;
-    testing.expectEqual(i, test_uuid.toInt());
+    try testing.expectEqual(i, test_uuid.toInt());
 }
 
 test "format" {
@@ -171,7 +171,7 @@ test "format" {
     try testing.expectFmt("00112233445566778899aabbccddeeff", "{x:0>32}", .{test_uuid});
 }
 
-fn testNotEqual(a: Uuid, b: Uuid) void {
+fn testNotEqual(a: Uuid, b: Uuid) !void {
     var eql = true;
     for (a.bytes) |ab, i| {
         if (ab != b.bytes[i]) {
@@ -179,5 +179,5 @@ fn testNotEqual(a: Uuid, b: Uuid) void {
             break;
         }
     }
-    testing.expect(!eql);
+    try testing.expect(!eql);
 }
