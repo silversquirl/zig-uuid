@@ -62,24 +62,18 @@ pub const Uuid = struct {
 
     pub fn fromInt(n: u128) Uuid {
         var v: [16]u8 = undefined;
-        for (v) |*b, i| {
-            b.* = @truncate(u8, n >> (8 * @intCast(u7, v.len - i - 1)));
-        }
+        std.mem.writeIntBig(u128, &v, n);
         return Uuid{ .bytes = v };
     }
 
     pub fn toInt(self: Uuid) u128 {
-        var i: u128 = 0;
-        for (self.bytes) |b| {
-            i = @shlExact(i, 8) | b;
-        }
-        return i;
+        return std.mem.readIntBig(u128, &self.bytes);
     }
 
     fn init(comptime version: u4, bytes: [16]u8) Uuid {
         var v: [16]u8 = bytes;
-        v[8] = v[8] | 0x3f | 0x40; // Set variant
-        v[6] = v[6] | 0x0f | version; // Set version
+        v[8] |= 0x3f | 0x40; // Set variant
+        v[6] |= 0x0f | version; // Set version
         return .{ .bytes = v };
     }
 
