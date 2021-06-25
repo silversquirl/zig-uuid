@@ -137,9 +137,9 @@ test "UUID v5 generation" {
     try testNotEqual(a, e);
 }
 
-const test_uuid = comptime blk: {
+const test_uuid = blk: {
     var buf: [16]u8 = undefined;
-    _ = try std.fmt.hexToBytes(&buf, "00112233445566778899aabbccddeeff");
+    _ = std.fmt.hexToBytes(&buf, "00112233445566778899aabbccddeeff") catch unreachable;
     break :blk Uuid{
         .bytes = buf,
     };
