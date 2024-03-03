@@ -12,7 +12,7 @@ pub const Uuid = struct {
     pub fn v4() Uuid {
         var v: [16]u8 = undefined;
         std.crypto.random.bytes(&v);
-        return init(4, v);
+        return fromRawBytes(4, v);
     }
     pub fn v5(ns: []const u8, name: []const u8) Uuid {
         return hashInit(std.crypto.hash.Sha1, 5, ns, name);
@@ -22,7 +22,7 @@ pub const Uuid = struct {
     pub fn fromString(str: []const u8) ParseError!Uuid {
         var v: [16]u8 = undefined;
         var i: u64 = 0;
-        for (v) |*b| {
+        for (&v) |*b| {
             const high = try nextHexDig(str, &i);
             const low = try nextHexDig(str, &i);
             b.* = (high << 4) | low;
@@ -45,7 +45,20 @@ pub const Uuid = struct {
         return error.InvalidLength;
     }
 
-    pub fn toString(self: Uuid) [36]u8 {
+    pub fn toStringCompact(self: Uuid) [32]u8 {
+        var buf: [32]u8 = undefined;
+        const slice = std.fmt.bufPrint(
+            &buf,
+            "{}",
+            .{std.fmt.fmtSliceHexLower(&self.bytes)},
+        ) catch unreachable;
+
+        std.debug.assert(slice.len == buf.len);
+
+        return buf;
+    }
+
+    pub fn toStringWithDashes(self: Uuid) [36]u8 {
         var buf: [36]u8 = undefined;
 
         const slice = std.fmt.bufPrint(&buf, "{}-{}-{}-{}-{}", .{
@@ -62,15 +75,18 @@ pub const Uuid = struct {
 
     pub fn fromInt(n: u128) Uuid {
         var v: [16]u8 = undefined;
-        std.mem.writeIntBig(u128, &v, n);
+        std.mem.writeInt(u128, &v, n, .big);
         return Uuid{ .bytes = v };
     }
 
     pub fn toInt(self: Uuid) u128 {
-        return std.mem.readIntBig(u128, &self.bytes);
+        return std.mem.readInt(u128, &self.bytes, .big);
     }
 
-    fn init(comptime version: u4, bytes: [16]u8) Uuid {
+    /// Initializes a UUID with the given bytes, setting the version and variant bits.
+    /// This is useful if you'd like to use your own RNG for generating UUIDs, invent your own
+    /// version or want to initialize an otherwise unconventional UUID.
+    pub fn fromRawBytes(version: u4, bytes: [16]u8) Uuid {
         var v: [16]u8 = bytes;
         v[8] = (v[8] & 0x3f) | 0x80; // Set variant
         v[6] = (v[6] & 0x0f) | (@as(u8, version) << 4); // Set version
@@ -83,12 +99,12 @@ pub const Uuid = struct {
         hasher.update(name);
         var hashed: [Hash.digest_length]u8 = undefined;
         hasher.final(&hashed);
-        return init(version, hashed[0..16].*);
+        return fromRawBytes(version, hashed[0..16].*);
     }
 
     pub fn format(self: Uuid, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         if (fmt.len == 0 or comptime std.mem.eql(u8, fmt, "s")) {
-            return std.fmt.formatBuf(&self.toString(), options, writer);
+            return std.fmt.formatBuf(&self.toStringWithDashes(), options, writer);
         } else {
             return std.fmt.formatIntValue(self.toInt(), fmt, options, writer);
         }
@@ -158,7 +174,12 @@ test "fromString" {
 test "toString" {
     try testing.expectEqualStrings(
         "00112233-4455-6677-8899-aabbccddeeff",
-        &test_uuid.toString(),
+        &test_uuid.toStringWithDashes(),
+    );
+
+    try testing.expectEqualStrings(
+        "00112233445566778899aabbccddeeff",
+        &test_uuid.toStringCompact(),
     );
 }
 
@@ -180,12 +201,5 @@ test "format" {
 }
 
 fn testNotEqual(a: Uuid, b: Uuid) !void {
-    var eql = true;
-    for (a.bytes) |ab, i| {
-        if (ab != b.bytes[i]) {
-            eql = false;
-            break;
-        }
-    }
-    try testing.expect(!eql);
+    try testing.expect(!std.mem.eql(u8, &a.bytes, &b.bytes));
 }
