@@ -2,11 +2,11 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     _ = b.addModule("uuid", .{
-        .root_source_file = .{ .path = "uuid.zig" },
+        .root_source_file = b.path("uuid.zig"),
     });
 
     const test_exe = b.addTest(.{
-        .root_source_file = .{ .path = "uuid.zig" },
+        .root_source_file = b.path("uuid.zig"),
     });
 
     const test_step = b.step("test", "Run unit tests");
